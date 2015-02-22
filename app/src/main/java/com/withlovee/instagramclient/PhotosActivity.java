@@ -1,5 +1,6 @@
 package com.withlovee.instagramclient;
 
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
 import android.util.Log;
@@ -23,6 +24,7 @@ public class PhotosActivity extends ActionBarActivity {
     public static final String CLIENT_ID = "1334b24c87064ddc941dbd02a756dbc7";
     private ArrayList<InstagramPhoto> photos;
     private InstagramPhotosAdapter aPhotos;
+    private SwipeRefreshLayout swipeContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -30,6 +32,26 @@ public class PhotosActivity extends ActionBarActivity {
         setContentView(R.layout.activity_photos);
         // Init
         photos = new ArrayList<InstagramPhoto>();
+
+        // Find swipeContainer
+        swipeContainer = (SwipeRefreshLayout) findViewById(R.id.swipeContainer);
+
+        // Set Listener
+        swipeContainer.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                // Your code to refresh the list here.
+                // Make sure you call swipeContainer.setRefreshing(false)
+                // once the network request has completed successfully.
+                fetchPopularPhotos(1);
+            }
+        });
+
+        // Configure the refreshing colors
+        swipeContainer.setColorSchemeResources(android.R.color.holo_blue_bright,
+                android.R.color.holo_green_light,
+                android.R.color.holo_orange_light,
+                android.R.color.holo_red_light);
 
         // Find the lvPhotos
         ListView lvPhotos = (ListView) findViewById(R.id.lvPhotos);
@@ -42,10 +64,10 @@ public class PhotosActivity extends ActionBarActivity {
         lvPhotos.setAdapter(aPhotos);
 
         // Get photos from API
-        fetchPopularPhotos();
+        fetchPopularPhotos(0);
     }
 
-    private void fetchPopularPhotos() {
+    private void fetchPopularPhotos(final int status) {
         String url = "https://api.instagram.com/v1/media/popular?client_id=" + CLIENT_ID;
         AsyncHttpClient client = new AsyncHttpClient();
         client.get(url, null, new JsonHttpResponseHandler(){
@@ -53,18 +75,22 @@ public class PhotosActivity extends ActionBarActivity {
             @Override
             public void onSuccess(int statusCode, Header[] headers, JSONObject response) {
                 JSONArray photosJSON = null;
+                photos.clear();
                 try {
                     photosJSON = response.getJSONArray("data");
                     for(int i = 0; i < photosJSON.length(); i++) {
                         JSONObject photoJSON = photosJSON.getJSONObject(i);
                         InstagramPhoto photo = new InstagramPhoto();
                         photo.username = photoJSON.getJSONObject("user").getString("username");
+                        photo.usernameImage = photoJSON.getJSONObject("user").getString("profile_picture");
                         photo.caption = photoJSON.getJSONObject("caption").getString("text");
                         photo.imageUrl = photoJSON.getJSONObject("images").getJSONObject("standard_resolution").getString("url");
                         photo.imageHeight = photoJSON.getJSONObject("images").getJSONObject("standard_resolution").getInt("height");
                         photo.likesCount = photoJSON.getJSONObject("likes").getInt("count");
+                        photo.commentsCount = photoJSON.getJSONObject("comments").getInt("count");
+                        photo.getLastTwoComments(photoJSON.getJSONObject("comments"));
                         photos.add(photo);
-                        //Log.i("DEBUG", i + photo.caption);
+                        Log.i("DEBUG", i + photo.caption);
                         //break;
                     }
 
@@ -73,6 +99,8 @@ public class PhotosActivity extends ActionBarActivity {
                 }
                 Log.i("DEBUG", response.toString());
                 aPhotos.notifyDataSetChanged();
+                if(status == 1)
+                    swipeContainer.setRefreshing(false);
             }
         });
     }
