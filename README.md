@@ -16,6 +16,7 @@ Display popular photos with the same style and proportions as the real Instagram
 
 ## Development Tools
 - Android Studio
+- Development time: 8 hours
 
 ## Demo
 
